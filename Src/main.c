@@ -23,7 +23,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "ssd1306.h"
+//#include "ssd1306.h"
+#include "sh1106.h"
 #include "MAX31855.h"
 /* USER CODE END Includes */
 
@@ -47,6 +48,8 @@ DMA_HandleTypeDef hdma_adc1;
 
 I2C_HandleTypeDef hi2c1;
 
+IWDG_HandleTypeDef hiwdg;
+
 SPI_HandleTypeDef hspi2;
 
 TIM_HandleTypeDef htim2;
@@ -66,6 +69,7 @@ static void MX_I2C1_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_SPI2_Init(void);
+static void MX_IWDG_Init(void);
 /* USER CODE BEGIN PFP */
 void TIM2_IRQHandler(void);
 void Breizinheim(void);
@@ -140,6 +144,7 @@ int main(void)
   MX_TIM2_Init();
   MX_USB_DEVICE_Init();
   MX_SPI2_Init();
+  MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
   ssd1306_Init();
   HAL_TIM_Encoder_Start(&htim3,TIM_CHANNEL_ALL);
@@ -206,6 +211,7 @@ int main(void)
     //--------------Blynk-------------
     if (HAL_GetTick()>(oldtimeA+200))
     {
+      HAL_IWDG_Refresh(&hiwdg);
       oldtimeA=HAL_GetTick();
       Blynk=~Blynk&0x01;
       if (HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_4)==GPIO_PIN_RESET)
@@ -407,8 +413,8 @@ int main(void)
       }
       
      
-      sprintf(Char_TX,"%s %d %s %d %s %d %s %d %s %d %s", "Up-" , adc[0], "Down-" , adc[1], "state" , flag, "setUp" , target1, "setD" , target2, "\r\n");
-      CDC_Transmit_FS(Char_TX, strlen(Char_TX)); 
+    //  sprintf(Char_TX,"%s %d %s %d %s %d %s %d %s %d %s", "Up-" , adc[0], "Down-" , adc[1], "state" , flag, "setUp" , target1, "setD" , target2, "\r\n");
+     // CDC_Transmit_FS(Char_TX, strlen(Char_TX)); 
     
     }  
     
@@ -467,10 +473,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6;
@@ -588,6 +595,34 @@ static void MX_I2C1_Init(void)
 }
 
 /**
+  * @brief IWDG Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_IWDG_Init(void)
+{
+
+  /* USER CODE BEGIN IWDG_Init 0 */
+
+  /* USER CODE END IWDG_Init 0 */
+
+  /* USER CODE BEGIN IWDG_Init 1 */
+
+  /* USER CODE END IWDG_Init 1 */
+  hiwdg.Instance = IWDG;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_16;
+  hiwdg.Init.Reload = 4095;
+  if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN IWDG_Init 2 */
+
+  /* USER CODE END IWDG_Init 2 */
+
+}
+
+/**
   * @brief SPI2 Initialization Function
   * @param None
   * @retval None
@@ -645,7 +680,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 47;
+  htim2.Init.Prescaler = 470;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 999;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -670,7 +705,7 @@ static void MX_TIM2_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 500;
+  sConfigOC.Pulse = 50;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
@@ -799,10 +834,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : Choise_t_Pin Choise_heater_Pin PB3 PB4
-                           PB5 */
-  GPIO_InitStruct.Pin = Choise_t_Pin|Choise_heater_Pin|GPIO_PIN_3|GPIO_PIN_4
-                          |GPIO_PIN_5;
+  /*Configure GPIO pins : Choise_t_Pin Choise_heater_Pin PB4 PB5 */
+  GPIO_InitStruct.Pin = Choise_t_Pin|Choise_heater_Pin|GPIO_PIN_4|GPIO_PIN_5;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
@@ -825,6 +858,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(SPI2_CS_T2_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB3 */
+  GPIO_InitStruct.Pin = GPIO_PIN_3;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 }
 
@@ -863,7 +902,12 @@ void screen1()
   } else {
     ssd1306_WriteString(R, Font_11x18, White);
   }
-  
+  ssd1306_SetCursor(90,0);
+  if (choise_t){
+    ssd1306_WriteString("ADC", Font_7x10, White);
+  }else{
+    ssd1306_WriteString("Digit", Font_7x10, White);
+  }
   ssd1306_SetCursor(0,26);
   ssd1306_WriteString("Down T:", Font_7x10, White); 
   ssd1306_SetCursor(49,22);
@@ -1024,31 +1068,45 @@ void screen3()
   
   ssd1306_Fill(Black);
   ssd1306_SetCursor(0,0);
-  ssd1306_WriteString("Set-", Font_7x10, White);
+  ssd1306_WriteString("Set:", Font_7x10, White);
   ssd1306_SetCursor(63,0);
   ssd1306_WriteString("Up", Font_7x10, White);
+  ssd1306_SetCursor(80,0);
+  sprintf(R,"%d%s",X1,"%");
+  ssd1306_WriteString(R, Font_7x10, White);
+  
   ssd1306_SetCursor(0,15);
-  ssd1306_WriteString("Cur-", Font_7x10, White);
+  ssd1306_WriteString("Cur:", Font_7x10, White);
   ssd1306_SetCursor(0,33);
-  ssd1306_WriteString("Set-", Font_7x10, White);
+  ssd1306_WriteString("Set:", Font_7x10, White);
   ssd1306_SetCursor(63,33);
   ssd1306_WriteString("Down", Font_7x10, White);
+  ssd1306_SetCursor(94,33);
+  sprintf(R,"%d%s",X2,"%");
+  ssd1306_WriteString(R, Font_7x10, White);
+  
+  
+  
   ssd1306_SetCursor(0,49);
-  ssd1306_WriteString("Cur-", Font_7x10, White);
+  ssd1306_WriteString("Cur:", Font_7x10, White);
 
   sprintf(R,"%d",target1);
   ssd1306_SetCursor(28,0);
   ssd1306_WriteString(R, Font_7x10, White);
-  sprintf(R,"%d",dma[0]);  //adc value
+  sprintf(R,"%d",adc[0]);  //adc value
   ssd1306_SetCursor(28,11);
   ssd1306_WriteString(R, Font_11x18, White); 
   
   sprintf(R,"%d",target2);
   ssd1306_SetCursor(28,33);
   ssd1306_WriteString(R, Font_7x10, White);
-  sprintf(R,"%d",dma[1]);
+  sprintf(R,"%d",adc[1]);
   ssd1306_SetCursor(28,45);
   ssd1306_WriteString(R, Font_11x18, White); 
+  ssd1306_SetCursor(65,45);
+  heater(choise_h);
+  
+  
   NVIC_DisableIRQ(EXTI3_IRQn);  //external interrupt enable
   ssd1306_UpdateScreen();
   NVIC_EnableIRQ(EXTI3_IRQn);  //external interrupt enable
